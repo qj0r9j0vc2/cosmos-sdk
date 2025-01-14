@@ -2,6 +2,11 @@ package maps
 
 import (
 	"encoding/binary"
+	"encoding/hex"
+	"fmt"
+	"log"
+	"os"
+	"runtime"
 
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/crypto/tmhash"
@@ -185,6 +190,28 @@ func HashFromMap(m map[string][]byte) []byte {
 // in the underlying key-value pairs.
 // The keys are sorted before the proofs are computed.
 func ProofsFromMap(m map[string][]byte) ([]byte, map[string]*cmtprotocrypto.Proof, []string) {
+	// Set logger
+	file, err := os.OpenFile("working_hash.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	log.SetOutput(file)
+	// Print, logging stack trace
+	fmt.Println("\t --------------------------------------------------------------------------------------------------------------")
+	log.Println("\t --------------------------------------------------------------------------------------------------------------")
+	log.Println("Function call trace: ")
+	pc := make([]uintptr, 32)
+	n := runtime.Callers(2, pc)
+	for i := 0; i < n; i++ {
+		fn := runtime.FuncForPC(pc[i])
+		if fn == nil {
+			continue
+		}
+		file, line := fn.FileLine(pc[i])
+		log.Printf("\n %s:%d %s\n", file, line, fn.Name())
+	}
+
 	sm := newSimpleMap()
 	for k, v := range m {
 		sm.Set(k, v)
@@ -194,6 +221,9 @@ func ProofsFromMap(m map[string][]byte) ([]byte, map[string]*cmtprotocrypto.Proo
 	kvs := sm.Kvs
 	kvsBytes := make([][]byte, len(kvs.Pairs))
 	for i, kvp := range kvs.Pairs {
+		log.Printf("\t %-15s %s\n", string(kvp.Key), hex.EncodeToString(kvp.Value))
+		fmt.Printf("\t %-15s %s\n", string(kvp.Key), hex.EncodeToString(kvp.Value))
+
 		kvsBytes[i] = KVPair(kvp).Bytes()
 	}
 
@@ -205,6 +235,8 @@ func ProofsFromMap(m map[string][]byte) ([]byte, map[string]*cmtprotocrypto.Proo
 		proofs[string(kvp.Key)] = proofList[i].ToProto()
 		keys[i] = string(kvp.Key)
 	}
+	log.Println("------------- Root ---------------", hex.EncodeToString(rootHash), "----------")
+	fmt.Println("------------- Root ---------------", hex.EncodeToString(rootHash), "----------")
 
 	return rootHash, proofs, keys
 }
