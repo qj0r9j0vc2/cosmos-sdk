@@ -1,6 +1,6 @@
 go 1.21
 
-module github.com/qj0r9j0vc2/cosmos-sdk
+module github.com/cosmos/cosmos-sdk
 
 require (
 	cosmossdk.io/api v0.7.5
